@@ -1,0 +1,33 @@
+import {
+  FolderOpen,
+  CalendarDays,
+  Briefcase,
+  ClipboardList,
+  Contact,
+  Handshake,
+  BarChart3,
+  Gavel,
+  Sparkles,
+  UsersRound,
+  Wallet,
+  Truck,
+  ShoppingCart,
+  LineChart,
+} from "lucide-react";
+
+export const navItems = [
+  { key: "file-manager", label: "File Manager", icon: FolderOpen },
+  { key: "appointment", label: "Appointment", icon: CalendarDays },
+  { key: "executive", label: "Executive", icon: Briefcase },
+  { key: "project", label: "Project", icon: ClipboardList },
+  { key: "crm", label: "CRM", icon: Contact },
+  { key: "affiliate", label: "Affiliate", icon: Handshake },
+  { key: "store-analytics", label: "Store Analytics", icon: BarChart3, badge: "NEW" },
+  { key: "bidding", label: "Bidding", icon: Gavel, badge: "NEW" },
+  { key: "social-media", label: "Social Media", icon: Sparkles },
+  { key: "job-board", label: "Job Board", icon: UsersRound },
+  { key: "financial", label: "Financial", icon: Wallet },
+  { key: "logistics", label: "Logistics", icon: Truck },
+  { key: "e-commerce", label: "E-Commerce", icon: ShoppingCart },
+  { key: "analytics", label: "Analytics", icon: LineChart },
+];
