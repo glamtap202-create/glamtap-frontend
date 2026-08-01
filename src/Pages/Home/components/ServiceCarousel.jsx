@@ -4,7 +4,8 @@ import { X, Plus, Minus, ShoppingBag } from "lucide-react";
 import API from "../../../api/axios"; // path check kar lena
 import { AuthContext } from "../../../Context/AuthContext";
 import { CartContext } from "../../../Context/CartContext";
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_SERVER || "https://api.glamtap.in";
 
 function ServiceCarousel() {
   const navigate = useNavigate();
