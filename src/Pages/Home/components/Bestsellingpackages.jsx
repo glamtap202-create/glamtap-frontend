@@ -74,11 +74,10 @@
 // }
 
 // export default BestSellingPackages;
-
-
 import React, { useState, useEffect, useContext } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import API from "../../../api/axios";
-import { CartContext } from "../../../Context/CartContext"; // path check kar lein
+import { CartContext } from "../../../Context/CartContext";
 import PackageCard from "./PackageCard";
 import DetailModal from "./DetailModal";
 
@@ -86,10 +85,24 @@ function BestSellingPackages() {
   const [packages, setPackages] = useState([]);
   const [activePkg, setActivePkg] = useState(null);
   const { addToCart } = useContext(CartContext);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchPackages();
   }, []);
+
+  // Login karke wapas is page par redirect hone ke baad,
+  // jo package detail modal open tha wahi dobara khol do
+  // (silently cart mein add nahi karna — user khud "Add to Cart" dabayega)
+  useEffect(() => {
+    if (location.state?.pendingPackage) {
+      setActivePkg(location.state.pendingPackage);
+      // state clear kar do taaki refresh/re-render par dobara modal na khule
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const fetchPackages = async () => {
     try {

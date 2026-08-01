@@ -1,22 +1,15 @@
 import { useEffect, useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { X, Plus, Minus, ShoppingBag } from "lucide-react";
 import API from "../../../api/axios"; // path check kar lena
-import { AuthContext } from "../../../Context/AuthContext";
-import { CartContext } from "../../../Context/CartContext";
+import { CartContext } from "../../../Context/CartContext"; // path check kar lena
+
 const API_BASE_URL = "http://localhost:5000";
 
 function ServiceCarousel() {
+  const { cart, addToCart, increaseQuantity, decreaseQuantity } = useContext(CartContext);
   const navigate = useNavigate();
-  const { isLoggedIn } = useContext(AuthContext);
-  const {
-    addToCart,
-    increaseQuantity,
-    decreaseQuantity,
-    cart,
-    cartCount,
-    cartTotal,
-  } = useContext(CartContext);
+  const location = useLocation();
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,12 +19,17 @@ function ServiceCarousel() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [loadingServices, setLoadingServices] = useState(false);
 
-  // Kis service ka option-selection panel khula hai (Honey/Rica/RollOn)
-  const [optionPanelForId, setOptionPanelForId] = useState(null);
-
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Back se home pe aane par jo category open thi wahi sheet dobara khol do
+  useEffect(() => {
+    if (location.state?.openCategory) {
+      handleCategoryClick(location.state.openCategory);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const fetchCategories = async () => {
     try {
@@ -51,7 +49,7 @@ function ServiceCarousel() {
     "clean up": "CleanUp",
     cleanup: "CleanUp",
     waxing: "Waxing",
-    // combo: "Combo Package",
+    combo: "Combo Package",
     "combo package": "Combo Package",
   };
 
@@ -66,6 +64,11 @@ function ServiceCarousel() {
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
+  };
+
+  const fetchCombos = async () => {
+    const res = await API.get("/combos");
+    return res.data.combos || res.data || [];
   };
 
   const getServiceImage = (service) => {
@@ -93,6 +96,9 @@ function ServiceCarousel() {
 
   const fetchServicesByCategory = async (category) => {
     const aliasKey = category.name?.toString().toLowerCase().trim();
+    if (aliasKey?.includes("combo")) {
+      return await fetchCombos();
+    }
 
     const categorySlug = getCategorySlug(category);
     const namesToTry = [category.name || category.title || category.category];
@@ -126,7 +132,6 @@ function ServiceCarousel() {
     setSelectedCategory(category);
     setIsSheetOpen(true);
     setLoadingServices(true);
-    setOptionPanelForId(null);
 
     try {
       const fetchedServices = await fetchServicesByCategory(category);
@@ -139,41 +144,35 @@ function ServiceCarousel() {
     }
   };
 
-  // Ek hi jagah se cart mein add karta hai (price sahi se compute karke)
-  // waxType field CartContext/Cart.jsx ke saath consistent rakha hai taaki
-  // quantity grouping aur +/- controls sahi variant pe kaam karein
-  const addServiceToCart = (service, optionKey) => {
-    const hasOptions = service.options && service.prices;
-    const price = hasOptions ? service.prices[optionKey]?.price : service.price;
+  // "Add" click pe pehle login check karo — login hai to hi cart mein add ho
+  const handleAddToCart = (service) => {
+    const token = localStorage.getItem("token");
 
-    addToCart({
-      ...service,
-      price,
-      waxType: hasOptions ? optionKey : null,
-    });
-
-    setOptionPanelForId(null);
-  };
-
-  // "Add" button click
-  const handleAddClick = (service) => {
-    if (!isLoggedIn) {
-      navigate("/signin");
+    if (!token) {
+      alert("Please login to add services to your cart");
+      navigate("/signin", {
+        state: {
+          from: location.pathname,
+          checkoutState: { openCategory: selectedCategory },
+        },
+      });
       return;
     }
 
-    const hasOptions = service.options && service.prices;
-
-    if (hasOptions) {
-      setOptionPanelForId((prev) => (prev === service._id ? null : service._id));
-      return;
-    }
-
-    addServiceToCart(service);
+    addToCart({ ...service, quantity: 1 });
   };
 
-  const handleOptionSelect = (service, optionKey) => {
-    addServiceToCart(service, optionKey);
+  const handleQuantity = (serviceId, type) => {
+    if (type === "inc") {
+      increaseQuantity(serviceId);
+    } else {
+      decreaseQuantity(serviceId);
+    }
+  };
+
+  const getMediaUrl = (mediaPath) => {
+    if (!mediaPath) return "";
+    return mediaPath.startsWith("http") ? mediaPath : `${API_BASE_URL}${mediaPath}`;
   };
 
   const renderServicePrice = (service) => {
@@ -194,6 +193,29 @@ function ServiceCarousel() {
 
     return <span className="text-pink-600 font-bold text-base sm:text-lg mt-2 block">₹{service.price}</span>;
   };
+
+  // Checkout: current sheet state history mein save karo, phir cart page pe jao
+  const handleCheckout = () => {
+    navigate(location.pathname, {
+      replace: true,
+      state: { openCategory: selectedCategory },
+    });
+    navigate("/cart");
+  };
+
+  const closeSheet = () => {
+    setIsSheetOpen(false);
+    // agar back-restore se khula tha to state clear kar do taaki dobara auto-open na ho
+    if (location.state?.openCategory) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  };
+
+  const currentCartQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const currentCartTotal = cart.reduce(
+    (sum, item) => sum + (Number(item.price) || 0) * item.quantity,
+    0
+  );
 
   return (
     <>
@@ -268,7 +290,7 @@ function ServiceCarousel() {
 
       {isSheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-black/50 backdrop-blur-sm">
-          <div className="flex-1" onClick={() => setIsSheetOpen(false)} />
+          <div className="flex-1" onClick={closeSheet} />
 
           <div className="bg-white rounded-t-3xl max-h-[85vh] h-full flex flex-col w-full max-w-3xl mx-auto overflow-hidden shadow-2xl transition-transform duration-300 translate-y-0">
             <div className="p-4 sm:p-5 border-b flex justify-between items-center bg-pink-100/50">
@@ -279,7 +301,7 @@ function ServiceCarousel() {
                 <p className="text-xs sm:text-sm text-gray-500">Select services to add to your order</p>
               </div>
               <button
-                onClick={() => setIsSheetOpen(false)}
+                onClick={closeSheet}
                 className="p-2 rounded-full bg-white shadow hover:bg-gray-100 transition"
               >
                 <X size={20} className="text-gray-600" />
@@ -290,158 +312,71 @@ function ServiceCarousel() {
               {loadingServices ? (
                 <p className="text-center py-12 text-gray-400 font-medium">Fetching services...</p>
               ) : services.length === 0 ? (
-                <p className="text-center py-12 text-gray-400">
-                  No services found for this category.
-                </p>
+                <p className="text-center py-12 text-gray-400">No services found for this category.</p>
               ) : (
                 services.map((service) => {
-                  const hasOptions = service.options && service.prices;
-                  const isOptionPanelOpen = optionPanelForId === service._id;
-
-                  // Is service ke jitne bhi variants (Honey/Rica/RollOn ya simple) cart mein hain
-                  const cartMatches = cart.filter((item) => item._id === service._id);
-                  const simpleMatch = !hasOptions ? cartMatches[0] : null;
-
+                  const cartItem = cart.find((item) => item._id === service._id);
                   return (
                     <div
                       key={service._id || service.id}
-                      className="flex flex-col gap-3 bg-gray-50 hover:bg-pink-50/30 p-4 rounded-2xl border border-gray-100 transition"
+                      className="flex items-center gap-4 bg-gray-50 hover:bg-pink-50/30 p-4 rounded-2xl border border-gray-100 transition"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white border border-gray-200 flex-shrink-0">
-                          <img
-                            src={getServiceImage(service)}
-                            alt={service.name || service.title || "Unnamed Service"}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = "/placeholder.png";
-                            }}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-800 sm:text-lg truncate">{service.name || service.title || "Unnamed Service"}</h4>
-                          {service.category && (
-                            <p className="text-xs sm:text-sm text-gray-500 mt-1">Category: {service.category}</p>
-                          )}
-                          {service.duration && (
-                            <p className="text-xs sm:text-sm text-gray-500 mt-1">Duration: {service.duration}</p>
-                          )}
-                          {getServiceDescription(service) ? (
-                            <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{getServiceDescription(service)}</p>
-                          ) : null}
-                          <div className="mt-2">{renderServicePrice(service)}</div>
-                          {(service.rating || service.totalReviews) && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {service.rating ? `Rating: ${service.rating}` : ""}
-                              {service.totalReviews ? ` • ${service.totalReviews} reviews` : ""}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Right side control: Add button / qty stepper / options-add button */}
-                        <div className="flex-shrink-0">
-                          {!hasOptions && simpleMatch ? (
-                            <div className="flex items-center border border-pink-200 rounded-xl">
-                              <button
-                                onClick={() => decreaseQuantity(service._id, null)}
-                                className="px-3 py-2 text-pink-600"
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <span className="px-3 text-sm font-semibold">{simpleMatch.quantity}</span>
-                              <button
-                                onClick={() => increaseQuantity(service._id, null)}
-                                className="px-3 py-2 text-pink-600"
-                              >
-                                <Plus size={14} />
-                              </button>
-                            </div>
-                          ) : !isOptionPanelOpen ? (
-                            <button
-                              onClick={() => handleAddClick(service)}
-                              className="flex items-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow"
-                            >
-                              <Plus size={16} /> Add
-                            </button>
-                          ) : null}
-                        </div>
+                      <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                        <img
+                          src={getServiceImage(service)}
+                          alt={service.name || service.title || "Unnamed Service"}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/placeholder.png";
+                          }}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-
-                      {/* Options wali service: jo variants pehle se cart mein hain, unke apne +/- controls */}
-                      {hasOptions && cartMatches.length > 0 && (
-                        <div className="bg-white border border-gray-100 rounded-xl p-3 space-y-2">
-                          {cartMatches.map((variant) => (
-                            <div
-                              key={variant.waxType || "default"}
-                              className="flex items-center justify-between text-sm"
-                            >
-                              <span className="text-gray-700">
-                                <span className="font-semibold">{variant.waxType}</span> — ₹{variant.price}
-                              </span>
-                              <div className="flex items-center border border-pink-200 rounded-xl">
-                                <button
-                                  onClick={() => decreaseQuantity(service._id, variant.waxType)}
-                                  className="px-2.5 py-1.5 text-pink-600"
-                                >
-                                  <Minus size={13} />
-                                </button>
-                                <span className="px-3 font-semibold">{variant.quantity}</span>
-                                <button
-                                  onClick={() => increaseQuantity(service._id, variant.waxType)}
-                                  className="px-2.5 py-1.5 text-pink-600"
-                                >
-                                  <Plus size={13} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => setOptionPanelForId(service._id)}
-                            className="text-xs text-pink-600 underline"
-                          >
-                            + Add another option
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Options choose karne ka panel */}
-                      {isOptionPanelOpen && hasOptions && (
-                        <div className="bg-white border border-pink-200 rounded-2xl p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-700 font-medium text-sm">
-                              Choose an option to add to cart
-                            </span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-800 sm:text-lg truncate">{service.name || service.title || "Unnamed Service"}</h4>
+                        {service.category && (
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">Category: {service.category}</p>
+                        )}
+                        {service.duration && (
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">Duration: {service.duration}</p>
+                        )}
+                        {getServiceDescription(service) ? (
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{getServiceDescription(service)}</p>
+                        ) : null}
+                        <div className="mt-2">{renderServicePrice(service)}</div>
+                        {(service.rating || service.totalReviews) && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {service.rating ? `Rating: ${service.rating}` : ""}
+                            {service.totalReviews ? ` • ${service.totalReviews} reviews` : ""}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0">
+                        {cartItem ? (
+                          <div className="flex items-center gap-2 bg-pink-600 text-white rounded-xl px-3 py-1.5 shadow">
                             <button
-                              onClick={() => setOptionPanelForId(null)}
-                              className="text-xs text-gray-500 underline"
+                              onClick={() => handleQuantity(service._id, "dec")}
+                              className="p-1 hover:bg-pink-700 rounded transition"
                             >
-                              Close
+                              <Minus size={16} />
+                            </button>
+                            <span className="font-bold text-sm min-w-[20px] text-center">{cartItem.quantity}</span>
+                            <button
+                              onClick={() => handleQuantity(service._id, "inc")}
+                              className="p-1 hover:bg-pink-700 rounded transition"
+                            >
+                              <Plus size={16} />
                             </button>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(service.prices)
-                              .filter(([, value]) => value && value.price != null)
-                              .map(([key, value]) => (
-                                <button
-                                  key={key}
-                                  onClick={() => handleOptionSelect(service, key)}
-                                  className="flex flex-col items-start border border-gray-300 hover:border-pink-500 rounded-xl px-3 py-2 text-sm transition text-left"
-                                >
-                                  <span className="font-semibold text-gray-800">{key}</span>
-                                  <span className="text-pink-600 font-bold">
-                                    ₹{value.price}{" "}
-                                    {value.oldPrice ? (
-                                      <span className="line-through text-gray-400 font-normal ml-1">
-                                        ₹{value.oldPrice}
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                </button>
-                              ))}
-                          </div>
-                        </div>
-                      )}
+                        ) : (
+                          <button
+                            onClick={() => handleAddToCart(service)}
+                            className="flex items-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow"
+                          >
+                            <Plus size={16} /> Add
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })
@@ -458,20 +393,17 @@ function ServiceCarousel() {
                     <div>
                       <p className="text-xs text-gray-500">Order Summary</p>
                       <p className="font-bold text-gray-800 text-sm sm:text-base">
-                        {cartCount} {cartCount === 1 ? "Item" : "Items"} in Cart
+                        {currentCartQty} {currentCartQty === 1 ? "Item" : "Items"} Selected
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500">Total Amount</p>
-                    <p className="text-xl sm:text-2xl font-bold text-pink-600">₹{cartTotal}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-pink-600">₹{currentCartTotal}</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setIsSheetOpen(false);
-                    navigate("/cart");
-                  }}
+                  onClick={handleCheckout}
                   className="w-full bg-pink-600 hover:bg-pink-700 text-white py-3 sm:py-3.5 rounded-2xl font-bold text-base sm:text-lg transition shadow-lg active:scale-[0.99]"
                 >
                   View Cart & Checkout

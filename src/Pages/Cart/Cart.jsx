@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { CartContext } from "../../Context/CartContext";
@@ -16,9 +16,16 @@ function Cart() {
     useContext(CartContext);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [date, setDate] = useState(new Date());
-  const [slot, setSlot] = useState("");
+  // Agar login flow se wapas aaye hain (Cart -> Signin -> Cart), to pehle se
+  // selected date/slot restore kar do taaki user ko dobara select na karna pade
+  const restoredState = location.state;
+
+  const [date, setDate] = useState(
+    restoredState?.date ? new Date(restoredState.date) : new Date()
+  );
+  const [slot, setSlot] = useState(restoredState?.slot || "");
 
   const subtotal = cart.reduce(
     (sum, item) => sum + Number(item.price) * item.quantity,
@@ -38,7 +45,8 @@ function Cart() {
       alert("Please login to continue booking");
       navigate("/signin", {
         state: {
-          from: "/checkout",
+          // Login ke baad wapas cart pe hi bhejo, checkout pe nahi
+          from: "/cart",
           checkoutState: { cart, subtotal, grandTotal, date, slot },
         },
       });

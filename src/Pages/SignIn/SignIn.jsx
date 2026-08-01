@@ -1,15 +1,32 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { X } from "lucide-react";
 import API from "../../api/axios";
 import { AuthContext } from "../../Context/AuthContext";
 
 function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useContext(AuthContext);
+  const { login, isLoggedIn } = useContext(AuthContext);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+
+  // Agar user pehle se logged in hai (jaise back button se yahan aa gaya),
+  // to login form dikhane ki bajaye seedha aage bhej do — dobara login na maange
+  useEffect(() => {
+    if (isLoggedIn) {
+      if (location.state?.from) {
+        navigate(location.state.from, {
+          replace: true,
+          state: location.state.checkoutState,
+        });
+      } else {
+        navigate("/account", { replace: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -24,12 +41,16 @@ function SignIn() {
       login(data.user, data.token);
 
       if (data.user.role === "admin") {
-        navigate("/admin");
+        navigate("/admin", { replace: true });
       } else if (location.state?.from) {
         // Booking flow se aaya tha — wahin wapas, cart data ke saath
-        navigate(location.state.from, { state: location.state.checkoutState });
+        // replace: true taaki /signin history se hat jaaye, back dabane par dobara na aaye
+        navigate(location.state.from, {
+          replace: true,
+          state: location.state.checkoutState,
+        });
       } else {
-        navigate("/account");
+        navigate("/account", { replace: true });
       }
     } catch (err) {
       alert(err.response?.data?.message || "Login Failed");
@@ -38,13 +59,28 @@ function SignIn() {
     }
   };
 
+  const handleGoHome = () => {
+    navigate("/", { replace: true });
+  };
+
+  // Jab tak login-check chal raha hai (already logged-in redirect), form mat dikhao
+  if (isLoggedIn) return null;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-pink-50">
+    <div className="min-h-screen flex items-center justify-center bg-pink-50 px-4 relative">
+      <button
+        onClick={handleGoHome}
+        aria-label="Close and go to home"
+        className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 rounded-full bg-white shadow hover:bg-gray-100 transition"
+      >
+        <X size={20} className="text-gray-600" />
+      </button>
+
       <form
         onSubmit={handleLogin}
-        className="bg-white shadow-lg rounded-xl p-8 w-[400px]"
+        className="bg-white shadow-lg rounded-xl p-6 sm:p-8 w-full max-w-[400px]"
       >
-        <h1 className="text-3xl font-bold mb-6 text-center">Login</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center">Login</h1>
 
         <input
           type="email"
@@ -52,7 +88,7 @@ function SignIn() {
           placeholder="Email"
           value={form.email}
           onChange={handleChange}
-          className="border w-full p-3 rounded mb-4"
+          className="border w-full p-3 rounded mb-4 text-sm sm:text-base"
           required
         />
 
@@ -62,23 +98,35 @@ function SignIn() {
           placeholder="Password"
           value={form.password}
           onChange={handleChange}
-          className="border w-full p-3 rounded mb-6"
+          className="border w-full p-3 rounded mb-6 text-sm sm:text-base"
           required
         />
 
         <button
-          className="bg-pink-600 text-white w-full py-3 rounded"
+          className="bg-pink-600 text-white w-full py-3 rounded text-sm sm:text-base"
           disabled={loading}
         >
           {loading ? "Logging..." : "Login"}
         </button>
 
-        <p className="text-center mt-5">
+        <p className="text-center mt-5 text-sm sm:text-base">
           Don't have an account?
-          <Link to="/register" className="text-pink-600 ml-2">
+          <Link
+            to="/register"
+            state={location.state}
+            className="text-pink-600 ml-2"
+          >
             Register
           </Link>
         </p>
+
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className="w-full mt-4 text-sm text-gray-500 underline"
+        >
+          Continue without login
+        </button>
       </form>
     </div>
   );

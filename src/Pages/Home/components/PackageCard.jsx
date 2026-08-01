@@ -9,7 +9,8 @@ function PackageCard({ pkg, onOpen }) {
 
   return (
     <div className="bg-white border border-stone-200 rounded-xl overflow-hidden flex flex-col hover:shadow-lg transition-shadow duration-200">
-      <div className="relative">
+      {/* image ab clickable hai — click karne se detail modal khulega */}
+      <div className="relative cursor-pointer" onClick={() => onOpen(pkg)}>
         <img
           src={pkg.img}
           alt={pkg.name}
@@ -23,7 +24,12 @@ function PackageCard({ pkg, onOpen }) {
       </div>
 
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-serif text-lg text-stone-900">{pkg.name}</h3>
+        <h3
+          className="font-serif text-lg text-stone-900 cursor-pointer"
+          onClick={() => onOpen(pkg)}
+        >
+          {pkg.name}
+        </h3>
         {pkg.tags && (
           <p className="text-xs text-stone-500 mt-0.5">{pkg.tags}</p>
         )}

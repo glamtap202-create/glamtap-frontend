@@ -14,6 +14,9 @@ import {
   Star,
   Gift,
   Headphones,
+  Home,
+  Menu,
+  X,
 } from "lucide-react";
 
 function Account() {
@@ -23,6 +26,7 @@ function Account() {
   const [bookings, setBookings] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     checkLogin();
@@ -137,76 +141,130 @@ function Account() {
   // Quick actions - wired to real navigation/tabs; no fake data behind them
   const quickActions = [
     { label: "Book Again", icon: Repeat, bg: "bg-pink-50", fg: "text-pink-600", onClick: () => setActiveTab("dashboard") },
+    { label: "Home", icon: Home, bg: "bg-sky-50", fg: "text-sky-600", onClick: () => navigate("/") },
     { label: "All Services", icon: Star, bg: "bg-violet-50", fg: "text-violet-600", onClick: () => navigate("/services/all") },
     { label: "Contact Us", icon: Gift, bg: "bg-amber-50", fg: "text-amber-600", onClick: () => navigate("/contact") },
     { label: "Support", icon: Headphones, bg: "bg-emerald-50", fg: "text-emerald-600", onClick: () => navigate("/contact") },
   ];
 
   const sidebarNav = [
+    { key: "home", label: "Home", icon: Home, path: "/" },
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { key: "profile", label: "Profile", icon: User },
   ];
 
-  return (
-    <div className="min-h-screen bg-[#faf7f9] flex">
+  const handleSidebarClick = (item) => {
+    setIsSidebarOpen(false);
+    if (item.path) {
+      navigate(item.path);
+      return;
+    }
+    setActiveTab(item.key);
+  };
 
-      {/* FULL-HEIGHT SIDEBAR */}
-      <aside className="w-64 shrink-0 bg-white border-r border-gray-100 px-5 py-8 flex flex-col">
-        <div className="flex items-center gap-3 mb-8 px-2">
-          <div className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
+  const SidebarContent = (
+    <>
+      <div className="flex items-center gap-3 mb-8 px-2">
+        <div className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
+          {user.name?.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 truncate">{user.name}</p>
+          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+        </div>
+      </div>
+
+      <nav className="flex flex-col gap-1 flex-1">
+        {sidebarNav.map(({ key, label, icon: Icon, path }) => (
+          <button
+            key={key}
+            onClick={() => handleSidebarClick({ key, path })}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition-colors ${
+              !path && activeTab === key
+                ? "bg-pink-50 text-pink-600 font-semibold"
+                : "text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            <Icon size={17} />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <button
+        onClick={logout}
+        className="flex items-center justify-center gap-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl mt-4"
+      >
+        <LogOut size={15} />
+        Logout
+      </button>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#faf7f9] flex flex-col lg:flex-row">
+
+      {/* MOBILE TOP BAR */}
+      <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-30">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
             {user.name?.charAt(0).toUpperCase()}
           </div>
-          <div className="min-w-0">
-            <p className="font-semibold text-gray-900 truncate">{user.name}</p>
-            <p className="text-xs text-gray-400 truncate">{user.email}</p>
-          </div>
+          <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
         </div>
-
-        <nav className="flex flex-col gap-1 flex-1">
-          {sidebarNav.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition-colors ${
-                activeTab === key
-                  ? "bg-pink-50 text-pink-600 font-semibold"
-                  : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              <Icon size={17} />
-              {label}
-            </button>
-          ))}
-        </nav>
-
         <button
-          onClick={logout}
-          className="flex items-center justify-center gap-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl mt-4"
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100"
+          aria-label="Open menu"
         >
-          <LogOut size={15} />
-          Logout
+          <Menu size={22} className="text-gray-700" />
         </button>
+      </div>
+
+      {/* MOBILE SIDEBAR DRAWER */}
+      {isSidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 flex">
+          <div
+            className="flex-1 bg-black/50"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          <aside className="w-72 max-w-[80vw] bg-white h-full px-5 py-6 flex flex-col shadow-2xl">
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="self-end p-2 rounded-full hover:bg-gray-100 mb-2"
+              aria-label="Close menu"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+            {SidebarContent}
+          </aside>
+        </div>
+      )}
+
+      {/* DESKTOP FULL-HEIGHT SIDEBAR */}
+      <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-gray-100 px-5 py-8 flex-col">
+        {SidebarContent}
       </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 min-w-0 px-6 sm:px-10 py-8">
+      <div className="flex-1 min-w-0 px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
 
         {/* Welcome banner */}
-        <div className="rounded-2xl bg-gradient-to-r from-pink-100 via-pink-50 to-white p-6 sm:p-8 mb-8">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+        <div className="rounded-2xl bg-gradient-to-r from-pink-100 via-pink-50 to-white p-5 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
             Welcome back, {user.name} 👋
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Look good, feel great!</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Look good, feel great!</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
             {stats.map(({ label, value, icon: Icon, bg, fg }) => (
-              <div key={label} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg} ${fg} shrink-0`}>
-                  <Icon size={18} />
+              <div key={label} className="bg-white rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-sm">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${bg} ${fg} shrink-0`}>
+                  <Icon size={17} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] text-gray-400 truncate">{label}</p>
-                  <p className="text-base font-bold text-gray-900">{value}</p>
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 truncate">{label}</p>
+                  <p className="text-sm sm:text-base font-bold text-gray-900">{value}</p>
                 </div>
               </div>
             ))}
@@ -214,36 +272,36 @@ function Account() {
         </div>
 
         {activeTab === "profile" && (
-          <div className="bg-white rounded-2xl shadow p-8 max-w-xl">
-            <h2 className="text-2xl font-bold mb-6">Personal Information</h2>
+          <div className="bg-white rounded-2xl shadow p-5 sm:p-8 max-w-xl">
+            <h2 className="text-xl sm:text-2xl font-bold mb-6">Personal Information</h2>
             <div className="space-y-4">
               <div>
                 <p className="text-gray-500 text-sm">Name</p>
-                <p className="text-lg">{user.name}</p>
+                <p className="text-base sm:text-lg">{user.name}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Email</p>
-                <p className="text-lg">{user.email}</p>
+                <p className="text-base sm:text-lg break-words">{user.email}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Phone</p>
-                <p className="text-lg">{user.phone}</p>
+                <p className="text-base sm:text-lg">{user.phone}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Role</p>
-                <p className="text-lg capitalize">{user.role}</p>
+                <p className="text-base sm:text-lg capitalize">{user.role}</p>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === "dashboard" && (
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
 
             {/* Quick Actions */}
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-3">Quick Actions</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {quickActions.map(({ label, icon: Icon, bg, fg, onClick }) => (
                   <button
                     key={label}
@@ -263,14 +321,14 @@ function Account() {
             {nextBooking && (
               <div>
                 <h3 className="text-sm font-bold text-gray-900 mb-3">Upcoming Booking</h3>
-                <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <img
                     src={getImageUrl(nextBooking.services[0]?.image)}
                     alt={nextBooking.services[0]?.name}
-                    className="w-16 h-16 rounded-xl object-cover"
+                    className="w-16 h-16 rounded-xl object-cover shrink-0"
                   />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-bold text-gray-900 truncate">
                       {nextBooking.services.map((s) => s.name).join(", ")}
                     </h4>
                     <p className="flex items-center gap-1 text-xs text-gray-500 mt-1">
@@ -289,14 +347,14 @@ function Account() {
                       {nextBooking.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3">
                     <span className="text-base font-bold text-gray-900">
                       ₹{nextBooking.totalAmount}
                     </span>
                     {nextBooking.status === "Pending" && (
                       <button
                         onClick={() => cancelBooking(nextBooking._id)}
-                        className="border border-red-400 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded-full text-xs font-semibold"
+                        className="border border-red-400 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap"
                       >
                         Cancel Booking
                       </button>
@@ -311,9 +369,9 @@ function Account() {
               <h3 className="text-sm font-bold text-gray-900 mb-3">My Bookings</h3>
 
               {bookings.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow p-10 text-center">
-                  <h2 className="text-xl font-semibold">No Orders Found</h2>
-                  <p className="text-gray-500 mt-2">
+                <div className="bg-white rounded-2xl shadow p-8 sm:p-10 text-center">
+                  <h2 className="text-lg sm:text-xl font-semibold">No Orders Found</h2>
+                  <p className="text-gray-500 mt-2 text-sm sm:text-base">
                     You haven't booked any services yet.
                   </p>
                 </div>
@@ -326,7 +384,7 @@ function Account() {
                     return (
                       <div
                         key={booking._id}
-                        className="bg-white rounded-2xl shadow p-5"
+                        className="bg-white rounded-2xl shadow p-4 sm:p-5"
                       >
                         <div className="flex gap-2 mb-4">
                           {visibleImages.map((item, index) => {
@@ -335,7 +393,7 @@ function Account() {
                             return (
                               <div
                                 key={index}
-                                className="relative w-16 h-16 rounded-xl overflow-hidden"
+                                className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0"
                               >
                                 <img
                                   src={getImageUrl(item.image)}
@@ -382,7 +440,7 @@ function Account() {
                           {booking.services.map((s) => s.name).join(", ")}
                         </p>
 
-                        <div className="flex justify-end gap-2 mt-4">
+                        <div className="flex flex-wrap justify-end gap-2 mt-4">
                           {booking.status === "Pending" && (
                             <button
                               onClick={() => cancelBooking(booking._id)}
