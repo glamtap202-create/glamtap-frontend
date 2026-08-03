@@ -4,11 +4,14 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { CartContext } from "../../Context/CartContext";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
+// FIX: images uploaded in the frontend's own /public folder should NOT be
+// prefixed with the backend API URL — that only resolves correctly when the
+// image is actually served by the backend. Paths like "/images/wax5.webp"
+// live in this app's own public/ folder, so they should be used as-is.
 const getImageUrl = (path) => {
   if (!path) return "/placeholder.png";
-  return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+  if (path.startsWith("http")) return path;
+  return path;
 };
 
 function Cart() {
