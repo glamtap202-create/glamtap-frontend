@@ -71,10 +71,17 @@ function ServiceCarousel() {
     return res.data.combos || res.data || [];
   };
 
+  // FIX: images uploaded in the frontend's own /public folder should NOT be
+  // prefixed with the backend API_BASE_URL (that only works on localhost).
+  // Only prefix with API_BASE_URL if you are SURE the image is actually
+  // served by the backend (e.g. an uploads folder on the server).
   const getServiceImage = (service) => {
     const path = service.image || service.img;
     if (!path) return "/placeholder.png";
-    return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+    if (path.startsWith("http")) return path;
+    // Path already looks like "/images/xxx.webp" which lives in public/ on
+    // the frontend itself, so just return it as-is.
+    return path;
   };
 
   const getServiceDescription = (service) => {
@@ -87,11 +94,11 @@ function ServiceCarousel() {
     );
   };
 
+  // FIX: same reasoning as getServiceImage above.
   const getCategoryImage = (item) => {
     if (!item.image) return "/placeholder.png";
-    return item.image.startsWith("http")
-      ? item.image
-      : `${API_BASE_URL}${item.image}`;
+    if (item.image.startsWith("http")) return item.image;
+    return item.image;
   };
 
   const fetchServicesByCategory = async (category) => {
@@ -170,6 +177,9 @@ function ServiceCarousel() {
     }
   };
 
+  // NOTE: if this is used for images that live in public/, apply the same
+  // fix here too. If it's genuinely used for backend-served media (e.g. a
+  // real uploads folder on your server), leave it as-is.
   const getMediaUrl = (mediaPath) => {
     if (!mediaPath) return "";
     return mediaPath.startsWith("http") ? mediaPath : `${API_BASE_URL}${mediaPath}`;
