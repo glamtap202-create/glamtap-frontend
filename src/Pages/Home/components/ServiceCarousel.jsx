@@ -66,21 +66,12 @@ function ServiceCarousel() {
       .replace(/^-|-$/g, "");
   };
 
-  const fetchCombos = async () => {
-    const res = await API.get("/combos");
-    return res.data.combos || res.data || [];
-  };
-
   // FIX: images uploaded in the frontend's own /public folder should NOT be
   // prefixed with the backend API_BASE_URL (that only works on localhost).
-  // Only prefix with API_BASE_URL if you are SURE the image is actually
-  // served by the backend (e.g. an uploads folder on the server).
   const getServiceImage = (service) => {
     const path = service.image || service.img;
     if (!path) return "/placeholder.png";
     if (path.startsWith("http")) return path;
-    // Path already looks like "/images/xxx.webp" which lives in public/ on
-    // the frontend itself, so just return it as-is.
     return path;
   };
 
@@ -101,11 +92,13 @@ function ServiceCarousel() {
     return item.image;
   };
 
+  // FIX: Combo Package services live in the SAME "services" collection as
+  // Waxing, Facial, CleanUp, etc (with category: "Combo Package") — not in
+  // a separate /combos endpoint. The special-case branch that called
+  // /combos has been removed. Combo Package now flows through the exact
+  // same category-filter logic as every other category below.
   const fetchServicesByCategory = async (category) => {
     const aliasKey = category.name?.toString().toLowerCase().trim();
-    if (aliasKey?.includes("combo")) {
-      return await fetchCombos();
-    }
 
     const categorySlug = getCategorySlug(category);
     const namesToTry = [category.name || category.title || category.category];
@@ -177,9 +170,6 @@ function ServiceCarousel() {
     }
   };
 
-  // NOTE: if this is used for images that live in public/, apply the same
-  // fix here too. If it's genuinely used for backend-served media (e.g. a
-  // real uploads folder on your server), leave it as-is.
   const getMediaUrl = (mediaPath) => {
     if (!mediaPath) return "";
     return mediaPath.startsWith("http") ? mediaPath : `${API_BASE_URL}${mediaPath}`;
@@ -215,7 +205,6 @@ function ServiceCarousel() {
 
   const closeSheet = () => {
     setIsSheetOpen(false);
-    // agar back-restore se khula tha to state clear kar do taaki dobara auto-open na ho
     if (location.state?.openCategory) {
       navigate(location.pathname, { replace: true, state: null });
     }
