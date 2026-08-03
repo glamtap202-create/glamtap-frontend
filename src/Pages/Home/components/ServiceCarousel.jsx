@@ -19,6 +19,10 @@ function ServiceCarousel() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [loadingServices, setLoadingServices] = useState(false);
 
+  // NEW: jis service ka option-panel (Honey/Rica/RollOn) khula hua hai,
+  // uski id yahan store hoti hai. Baaki kuch nahi badla.
+  const [selectingServiceId, setSelectingServiceId] = useState(null);
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -132,6 +136,7 @@ function ServiceCarousel() {
     setSelectedCategory(category);
     setIsSheetOpen(true);
     setLoadingServices(true);
+    setSelectingServiceId(null);
 
     try {
       const fetchedServices = await fetchServicesByCategory(category);
@@ -145,7 +150,7 @@ function ServiceCarousel() {
   };
 
   // "Add" click pe pehle login check karo — login hai to hi cart mein add ho
-  const handleAddToCart = (service) => {
+  const handleAddToCart = (service, optionKey, optionValue) => {
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -159,7 +164,32 @@ function ServiceCarousel() {
       return;
     }
 
+    // NEW: agar service ke multiple options hain (Honey/Rica/RollOn), to
+    // jo option choose hua uska price/oldPrice aur waxType cart item mein
+    // save karo. Options na hone par pehle jaisa hi normal add hoga.
+    if (optionKey && optionValue) {
+      addToCart({
+        ...service,
+        waxType: optionKey,
+        price: optionValue.price,
+        oldPrice: optionValue.oldPrice,
+        quantity: 1,
+      });
+      setSelectingServiceId(null);
+      return;
+    }
+
     addToCart({ ...service, quantity: 1 });
+  };
+
+  // NEW: "Add" button click hone par — agar service ke options hain to
+  // seedha add karne ke bajaye pehle option-panel khol do.
+  const handleAddClick = (service) => {
+    if (service.options && service.prices) {
+      setSelectingServiceId(service._id || service.id);
+      return;
+    }
+    handleAddToCart(service);
   };
 
   const handleQuantity = (serviceId, type) => {
@@ -194,6 +224,51 @@ function ServiceCarousel() {
     return <span className="text-pink-600 font-bold text-base sm:text-lg mt-2 block">₹{service.price}</span>;
   };
 
+  // NEW: options wale service ke liye inline "Choose an option to add to
+  // cart" panel — jaisa screenshot mein tha. Baaki design ko touch nahi kiya.
+  const renderOptionPanel = (service) => {
+    if (!service.options || !service.prices) return null;
+
+    const serviceId = service._id || service.id;
+    if (selectingServiceId !== serviceId) return null;
+
+    const options = Object.entries(service.prices).filter(
+      ([, value]) => value && value.price != null
+    );
+
+    return (
+      <div className="mt-3 border rounded-xl p-3 sm:p-4 bg-gray-50">
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-sm font-semibold text-gray-700">Choose an option to add to cart</p>
+          <button
+            onClick={() => setSelectingServiceId(null)}
+            className="text-xs sm:text-sm text-gray-500 underline"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+          {options.map(([key, value]) => (
+            <button
+              key={key}
+              onClick={() => handleAddToCart(service, key, value)}
+              className="border rounded-xl bg-white hover:bg-pink-50 px-3 py-2 text-left transition"
+            >
+              <p className="text-sm font-semibold text-gray-800">{key}</p>
+              <p className="text-sm">
+                <span className="text-pink-600 font-bold">₹{value.price}</span>
+                {value.oldPrice ? (
+                  <span className="line-through text-gray-400 ml-1">₹{value.oldPrice}</span>
+                ) : null}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // Checkout: current sheet state history mein save karo, phir cart page pe jao
   const handleCheckout = () => {
     navigate(location.pathname, {
@@ -205,6 +280,7 @@ function ServiceCarousel() {
 
   const closeSheet = () => {
     setIsSheetOpen(false);
+    setSelectingServiceId(null);
     if (location.state?.openCategory) {
       navigate(location.pathname, { replace: true, state: null });
     }
@@ -314,68 +390,72 @@ function ServiceCarousel() {
                 <p className="text-center py-12 text-gray-400">No services found for this category.</p>
               ) : (
                 services.map((service) => {
-                  const cartItem = cart.find((item) => item._id === service._id);
+                  const cartItem = cart.find((item) => item._id === service._id && !item.waxType);
                   return (
                     <div
                       key={service._id || service.id}
-                      className="flex items-center gap-4 bg-gray-50 hover:bg-pink-50/30 p-4 rounded-2xl border border-gray-100 transition"
+                      className="bg-gray-50 hover:bg-pink-50/30 p-4 rounded-2xl border border-gray-100 transition"
                     >
-                      <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white border border-gray-200 flex-shrink-0">
-                        <img
-                          src={getServiceImage(service)}
-                          alt={service.name || service.title || "Unnamed Service"}
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "/placeholder.png";
-                          }}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-800 sm:text-lg truncate">{service.name || service.title || "Unnamed Service"}</h4>
-                        {service.category && (
-                          <p className="text-xs sm:text-sm text-gray-500 mt-1">Category: {service.category}</p>
-                        )}
-                        {service.duration && (
-                          <p className="text-xs sm:text-sm text-gray-500 mt-1">Duration: {service.duration}</p>
-                        )}
-                        {getServiceDescription(service) ? (
-                          <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{getServiceDescription(service)}</p>
-                        ) : null}
-                        <div className="mt-2">{renderServicePrice(service)}</div>
-                        {(service.rating || service.totalReviews) && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {service.rating ? `Rating: ${service.rating}` : ""}
-                            {service.totalReviews ? ` • ${service.totalReviews} reviews` : ""}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex-shrink-0">
-                        {cartItem ? (
-                          <div className="flex items-center gap-2 bg-pink-600 text-white rounded-xl px-3 py-1.5 shadow">
+                      <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                          <img
+                            src={getServiceImage(service)}
+                            alt={service.name || service.title || "Unnamed Service"}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "/placeholder.png";
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-800 sm:text-lg truncate">{service.name || service.title || "Unnamed Service"}</h4>
+                          {service.category && (
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1">Category: {service.category}</p>
+                          )}
+                          {service.duration && (
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1">Duration: {service.duration}</p>
+                          )}
+                          {getServiceDescription(service) ? (
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{getServiceDescription(service)}</p>
+                          ) : null}
+                          <div className="mt-2">{renderServicePrice(service)}</div>
+                          {(service.rating || service.totalReviews) && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {service.rating ? `Rating: ${service.rating}` : ""}
+                              {service.totalReviews ? ` • ${service.totalReviews} reviews` : ""}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0">
+                          {cartItem && !service.options ? (
+                            <div className="flex items-center gap-2 bg-pink-600 text-white rounded-xl px-3 py-1.5 shadow">
+                              <button
+                                onClick={() => handleQuantity(service._id, "dec")}
+                                className="p-1 hover:bg-pink-700 rounded transition"
+                              >
+                                <Minus size={16} />
+                              </button>
+                              <span className="font-bold text-sm min-w-[20px] text-center">{cartItem.quantity}</span>
+                              <button
+                                onClick={() => handleQuantity(service._id, "inc")}
+                                className="p-1 hover:bg-pink-700 rounded transition"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleQuantity(service._id, "dec")}
-                              className="p-1 hover:bg-pink-700 rounded transition"
+                              onClick={() => handleAddClick(service)}
+                              className="flex items-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow"
                             >
-                              <Minus size={16} />
+                              <Plus size={16} /> Add
                             </button>
-                            <span className="font-bold text-sm min-w-[20px] text-center">{cartItem.quantity}</span>
-                            <button
-                              onClick={() => handleQuantity(service._id, "inc")}
-                              className="p-1 hover:bg-pink-700 rounded transition"
-                            >
-                              <Plus size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleAddToCart(service)}
-                            className="flex items-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow"
-                          >
-                            <Plus size={16} /> Add
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
+
+                      {renderOptionPanel(service)}
                     </div>
                   );
                 })
