@@ -1,7 +1,6 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartContext } from "../../../Context/CartContext";
-import { AuthContext } from "../../../Context/AuthContext";
 import {
   Plus,
   Minus,
@@ -1273,18 +1272,9 @@ function FacialsGrid() {
   const [address, setAddress] = useState(null);
 
   const navigate = useNavigate();
-  const location = useLocation();
   const { addToCart } = useContext(CartContext);
-  const { isLoggedIn } = useContext(AuthContext);
+
   // FacialsGrid ke product object ko asli CartContext ke item shape mein convert karta hai
-   const requireLogin = (product) => {
-    navigate("/signin", {
-      state: {
-        from: location.pathname,
-        checkoutState: { pendingProduct: product },
-      },
-    });
-  };
   const mapToCartItem = (product, qty) => ({
     _id: product.id,
     name: product.title,
