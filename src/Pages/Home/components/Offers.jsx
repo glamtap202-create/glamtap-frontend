@@ -25,6 +25,26 @@ function Offers() {
     }
   };
 
+  // Agar backend URL se image load na ho (404), to filename nikal ke
+  // frontend ke apne public/images/ folder se try karo.
+  // Ye sirf broken images ko fix karega — jo already sahi load ho rahi
+  // hain unpe ye function trigger hi nahi hoga.
+  const handleImgError = (e, brand) => {
+    const alreadyTriedFallback = e.target.dataset.fallbackTried;
+    if (alreadyTriedFallback) {
+      // fallback bhi fail ho gaya, ab kuch aur mat karo (infinite loop se bachne ke liye)
+      return;
+    }
+
+    const rawPath = brand.logo || "";
+    // path ke aakhri hisse se sirf filename nikal lo
+    const filename = rawPath.split("/").pop();
+
+    if (filename) {
+      e.target.dataset.fallbackTried = "true";
+      e.target.src = `/images/${filename}`;
+    }
+  };
 
   return (
     <section className="py-16 bg-white overflow-hidden">
@@ -58,6 +78,7 @@ function Offers() {
     : `${import.meta.env.VITE_API_URL}${brand.logo}`
   }
   alt={brand.name}
+  onError={(e) => handleImgError(e, brand)}
   className="w-60 h-28 object-contain transition-transform duration-300 hover:scale-110"
 />
 
