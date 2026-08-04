@@ -6,6 +6,7 @@ import { ShieldCheck, BadgeCheck, Package } from "lucide-react";
 import { CartContext } from "../../Context/CartContext";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
+import ServiceDetailModal from "./ServiceDetailModal";
 
 function Services() {
   const { addToCart, cart } = useContext(CartContext);
@@ -17,8 +18,16 @@ function Services() {
   const [apiError, setApiError] = useState(null);
   const [sortBy, setSortBy] = useState("featured");
   const [showSort, setShowSort] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [selectedService, setSelectedService] = useState(null);
+  const [optionsOpenId, setOptionsOpenId] = useState(null);
 
+  // TODO: agar app mein AuthContext hai to isko us context ke isLoggedIn/user
+  // se replace kar dena — abhi localStorage token check kar rahe hain
+  const isLoggedIn = () => !!localStorage.getItem("token");
+
+  // Category name/slug ko bahut lenient tarah se normalize karta hai —
+  // spaces, hyphens, "&" aur case sab ignore ho jaate hain, taaki
+  // "Clean Up", "clean-up", "clean up", "CleanUp" sab ek jaise match ho
   const normalizeCategory = (value = "") =>
     value
       .trim()
@@ -59,6 +68,7 @@ function Services() {
         return;
       }
 
+      // Attempt 1: category slug se seedha fetch (jaise "clean-up")
       try {
         const res = await API.get(`/services/category/${encodeURIComponent(category)}`);
         const servicesBySlug = res.data.services || res.data || [];
@@ -70,8 +80,34 @@ function Services() {
         console.warn("Service category slug fetch failed", err);
       }
 
+      // Attempt 2: normalized (space-separated) category se filter query
       const res = await API.get(`/services/filter?category=${encodeURIComponent(normalizedCategory)}`);
-      setServices(res.data.services || res.data || []);
+      const servicesByFilter = res.data.services || res.data || [];
+      if (servicesByFilter.length > 0) {
+        setServices(servicesByFilter);
+        return;
+      }
+
+      // Attempt 3 (fallback): agar upar dono attempts 0 results dein
+      // (jaise category naming backend ke DB mein thoda alag ho —
+      // spacing/case/hyphen ka mismatch), to saare services fetch
+      // karke client-side lenient matching se filter karo. Ye sirf
+      // tabhi chalta hai jab attempt 1 aur 2 dono fail ho chuke hon,
+      // isliye already-working categories iske paas pahunchte hi nahi
+      // aur unka behavior bilkul same rehta hai.
+      try {
+        const allRes = await API.get("/services");
+        const allServices = allRes.data.services || allRes.data || [];
+        const targetKey = normalizeCategory(normalizedCategory);
+        const clientFiltered = allServices.filter((s) => {
+          const serviceCategory = s.category || s.categoryName || "";
+          return normalizeCategory(serviceCategory) === targetKey;
+        });
+        setServices(clientFiltered);
+      } catch (fallbackErr) {
+        console.warn("Client-side category fallback failed", fallbackErr);
+        setServices(servicesByFilter);
+      }
     } catch (err) {
       console.error("Error fetching services", err);
       setApiError(err.response?.data?.message || err.message || "Unable to load services");
@@ -106,8 +142,19 @@ function Services() {
     return list;
   }, [services, sortBy]);
 
-  const handleAddToCart = (e, service) => {
-    e.stopPropagation();
+  // Core add-to-cart logic, event-independent taaki modal se bhi
+  // (jahan click event nahi hota) isko reuse kiya ja sake.
+  //
+  // overrideOption (optional): { name, price, oldPrice } — jab user modal ke
+  // option-panel se ek specific option (Honey/Rica/RollOn) choose karta hai,
+  // to uski exact price/name yahan use hoti hai. Jab overrideOption nahi diya
+  // jata (sabhi purane/simple-service calls), behavior bilkul pehle jaisa hi
+  // rehta hai — getPricing() se hi price aati hai.
+  const addServiceToCart = (service, overrideOption = null) => {
+    if (!isLoggedIn()) {
+      navigate("/login");
+      return;
+    }
 
     if (!addToCart) {
       console.error("addToCart missing — CartProvider not wrapping the app?");
@@ -115,7 +162,9 @@ function Services() {
       return;
     }
 
-    const { price, oldPrice } = getPricing(service);
+    const { price, oldPrice } = overrideOption
+      ? { price: overrideOption.price, oldPrice: overrideOption.oldPrice }
+      : getPricing(service);
 
     addToCart({
       _id: service._id || service.id,
@@ -125,57 +174,19 @@ function Services() {
       price,
       oldPrice,
       quantity: 1,
-      waxType: null,
+      waxType: overrideOption ? overrideOption.name : null,
     });
+  };
 
-    setToast({
-      name: service.name,
-      image: service.image,
-      duration: service.duration,
-    });
-
-    setTimeout(() => setToast(null), 3000);
+  const handleAddToCart = (e, service) => {
+    e.stopPropagation();
+    addServiceToCart(service);
   };
 
   return (
     <>
       <Navbar />
       <section className="bg-[#f8f5ef] min-h-screen py-6 sm:py-8 relative">
-        {toast && (
-          <div className="fixed top-24 right-6 z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-4 w-80">
-            <div className="flex items-center justify-between mb-2">
-              <span className="flex items-center gap-1 text-sm font-medium text-gray-700">
-                ✓ Item added to your cart
-              </span>
-              <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600">
-                ✕
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 mb-3">
-              <img src={toast.image} alt={toast.name} className="w-14 h-14 rounded-md object-cover" />
-              <div>
-                <p className="text-[11px] uppercase text-gray-500">{toast.duration}</p>
-                <p className="text-sm font-semibold">{toast.name}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate("/cart")}
-              className="w-full border border-pink-500 text-pink-600 font-medium rounded-lg py-2 mb-1"
-            >
-              View cart ({cart?.length ?? 0})
-            </button>
-
-            <button
-              onClick={() => setToast(null)}
-              className="w-full text-sm text-gray-600 underline"
-            >
-              Continue shopping
-            </button>
-          </div>
-        )}
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <ServiceCarousel />
 
@@ -239,22 +250,6 @@ function Services() {
                 </div>
               )}
             </div>
-
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-sm outline-none"
-              >
-                <option value="featured">Featured</option>
-                <option value="priceLowHigh">Price: Low to High</option>
-                <option value="priceHighLow">Price: High to Low</option>
-              </select>
-              <span className="hidden sm:inline text-gray-500">
-                {filteredServices.length} products
-              </span>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center">
@@ -271,6 +266,10 @@ function Services() {
                   <img
                     src={service.image}
                     alt={service.name}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedService(service);
+                    }}
                     className="w-full h-32 object-cover"
                   />
 
@@ -305,9 +304,10 @@ function Services() {
 
                     <button
                       onClick={(e) => {
+                        e.stopPropagation();
                         if (service.options) {
-                          e.stopPropagation();
-                          navigate(`/service/${service._id || service.id}`);
+                          const cardId = service._id || service.id;
+                          setOptionsOpenId(optionsOpenId === cardId ? null : cardId);
                         } else {
                           handleAddToCart(e, service);
                         }
@@ -316,6 +316,62 @@ function Services() {
                     >
                       {service.options ? "Choose Options" : "Add to Cart"}
                     </button>
+
+                    {/* Inline option panel — only for option-based services, only when opened for this card */}
+                    {service.options &&
+                      optionsOpenId === (service._id || service.id) && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 border border-stone-200 rounded-lg p-2"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-xs font-medium text-stone-700">
+                              Choose an option to add to cart
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setOptionsOpenId(null)}
+                              className="text-xs text-stone-500 underline"
+                            >
+                              Close
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {Object.keys(service.prices || {}).map((wax) => {
+                              const p = service.prices[wax] || {};
+                              return (
+                                <button
+                                  key={wax}
+                                  type="button"
+                                  onClick={() => {
+                                    addServiceToCart(service, {
+                                      name: wax,
+                                      price: p.price,
+                                      oldPrice: p.oldPrice,
+                                    });
+                                    setOptionsOpenId(null);
+                                  }}
+                                  className="flex-1 min-w-[70px] text-left px-2 py-1.5 rounded-lg border border-stone-200 hover:border-pink-600 hover:bg-pink-50 text-xs transition-colors"
+                                >
+                                  <div className="font-medium text-stone-800">
+                                    {wax === "RollOn" ? "Roll On" : wax}
+                                  </div>
+                                  <div className="flex items-baseline gap-1 mt-0.5">
+                                    <span className="text-pink-600 font-semibold">
+                                      ₹{p.price}
+                                    </span>
+                                    {p.oldPrice ? (
+                                      <span className="text-stone-400 line-through text-[10px]">
+                                        ₹{p.oldPrice}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
               );
@@ -335,6 +391,15 @@ function Services() {
           )}
         </div>
       </section>
+
+      {selectedService && (
+        <ServiceDetailModal
+          service={selectedService}
+          onClose={() => setSelectedService(null)}
+          onAddToCart={(svc, option) => addServiceToCart(svc, option)}
+        />
+      )}
+
       <Footer />
     </>
   );

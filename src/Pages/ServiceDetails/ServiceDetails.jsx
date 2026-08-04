@@ -178,19 +178,39 @@ function ServiceDetails() {
                 <p className="mt-8 mb-3 text-gray-700">Select type of wax</p>
 
                 <div className="flex gap-3 flex-wrap">
-                  {Object.keys(service.prices).map((wax) => (
-                    <button
-                      key={wax}
-                      onClick={() => setSelectedWax(wax)}
-                      className={`px-6 py-3 rounded-xl border transition ${
-                        selectedWax === wax
-                          ? "bg-black text-white"
-                          : "bg-white hover:bg-gray-100"
-                      }`}
-                    >
-                      {wax === "RollOn" ? "Roll On Wax" : wax}
-                    </button>
-                  ))}
+                  {Object.keys(service.prices).map((wax) => {
+                    const waxPricing = service.prices[wax] || {};
+                    const isSelected = selectedWax === wax;
+                    return (
+                      <button
+                        key={wax}
+                        onClick={() => setSelectedWax(wax)}
+                        className={`px-6 py-3 rounded-xl border transition text-left ${
+                          isSelected
+                            ? "bg-black text-white"
+                            : "bg-white hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="font-medium">
+                          {wax === "RollOn" ? "Roll On Wax" : wax}
+                        </div>
+                        <div className="mt-0.5 flex items-baseline gap-1.5 text-sm">
+                          <span className={isSelected ? "text-white" : "text-pink-600"}>
+                            ₹{waxPricing.price}
+                          </span>
+                          {waxPricing.oldPrice ? (
+                            <span
+                              className={`line-through text-xs ${
+                                isSelected ? "text-gray-300" : "text-gray-400"
+                              }`}
+                            >
+                              ₹{waxPricing.oldPrice}
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}
