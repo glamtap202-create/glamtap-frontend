@@ -261,14 +261,16 @@ function Services() {
                 <div
                   key={service.id}
                   onClick={() => navigate(`/service/${service._id || service.id}`)}
-                  className="w-full max-w-[250px] bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col cursor-pointer"
+                  className="w-full max-w-[250px] self-start bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col cursor-pointer"
                 >
                   <img
                     src={service.image}
                     alt={service.name}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedService(service);
+                      if (!service.options) {
+                        setSelectedService(service);
+                      }
                     }}
                     className="w-full h-32 object-cover"
                   />

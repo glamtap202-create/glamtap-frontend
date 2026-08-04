@@ -173,5 +173,5 @@ function ServiceDetailModal({ service, onClose, onAddToCart }) {
     </div>
   );
 }
-
+//service
 export default ServiceDetailModal;
