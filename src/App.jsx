@@ -41,6 +41,14 @@ import PartnerLogin from "./Pages/Partner/Login";
 import PartnerRegister from "./Pages/Partner/Register";
 import PartnerForgotPassword from "./Pages/Partner/ForgotPassword";
 import AdminEnquiries from "./Pages/Admin/AdminEnquiries";
+import PrivacyPolicy from "./Pages/PrivacyPolicy";
+import TermsConditions from "./Pages/TermsConditions";
+
+import CancellationRefundPolicy from "./Pages/CancellationRefundPolicy";
+
+
+// Routes ke andar
+
 
 function App() {
   return (
@@ -62,7 +70,15 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/thank-you" element={<ThankYou />} />
             <Route path="/account" element={<Account />} />
-
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route
+  path="/terms-and-conditions"
+  element={<TermsConditions />}
+/>
+       <Route
+  path="/cancellation-refund-policy"
+  element={<CancellationRefundPolicy />}
+/>
             {/* Partner */}
             <Route path="/partner/login" element={<PartnerLogin />} />
             <Route path="/partner/register" element={<PartnerRegister />} />

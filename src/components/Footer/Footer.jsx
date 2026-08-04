@@ -25,7 +25,7 @@ function Footer() {
             </li>
 
             <li>
-              <Link to="/terms" className="hover:text-pink-200">
+              <Link to="/terms-and-conditions" className="hover:text-pink-200">
                 » Terms & Conditions
               </Link>
             </li>
@@ -37,7 +37,7 @@ function Footer() {
             </li>
 
             <li>
-              <Link to="/refund-policy" className="hover:text-pink-200">
+              <Link to="/cancellation-refund-policy" className="hover:text-pink-200">
                 » Cancellation & Refund Policy
               </Link>
             </li>
