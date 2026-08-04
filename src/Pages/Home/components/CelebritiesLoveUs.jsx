@@ -118,7 +118,7 @@ export default function CelebritiesLoveUs() {
    <img
   src={celeb.image}
   alt={celeb.name}
-  className="w-full h-full object-cover"
+  className="w-full h-full object-cover object-top"
 />
 
     {/* Bottom Text */}

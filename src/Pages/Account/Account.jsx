@@ -202,7 +202,7 @@ function Account() {
   );
 
   return (
-    <div className="min-h-screen bg-[#faf7f9] flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#faf7f9] flex flex-col lg:flex-row overflow-x-hidden">
 
       {/* MOBILE TOP BAR */}
       <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-30">
@@ -306,7 +306,7 @@ function Account() {
                   <button
                     key={label}
                     onClick={onClick}
-                    className="bg-white border border-gray-100 rounded-2xl py-4 px-2 text-center hover:shadow-md hover:-translate-y-0.5 transition-all"
+                    className="bg-white border border-gray-100 rounded-2xl py-4 px-2 text-center transition-shadow hover:shadow-md active:scale-95"
                   >
                     <div className={`w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center ${bg} ${fg}`}>
                       <Icon size={18} />
