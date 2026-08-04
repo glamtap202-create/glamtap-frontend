@@ -36,6 +36,9 @@ function Account() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: "", phone: "" });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     checkLogin();
@@ -80,6 +83,37 @@ function Account() {
     } catch (error) {
       console.log(error);
       alert("Unable to cancel booking");
+    }
+  };
+
+  const startEditProfile = () => {
+    setProfileForm({ name: user.name || "", phone: user.phone || "" });
+    setIsEditingProfile(true);
+  };
+
+  const cancelEditProfile = () => {
+    setIsEditingProfile(false);
+  };
+
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await API.put("/users/profile", {
+        name: profileForm.name,
+        phone: profileForm.phone,
+      });
+      setUser((prev) => ({
+        ...prev,
+        name: res.data?.user?.name ?? profileForm.name,
+        phone: res.data?.user?.phone ?? profileForm.phone,
+      }));
+      setIsEditingProfile(false);
+    } catch (error) {
+      console.log(error);
+      alert("Unable to update profile");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -282,25 +316,91 @@ function Account() {
 
         {activeTab === "profile" && (
           <div className="bg-white rounded-2xl shadow p-5 sm:p-8 max-w-xl">
-            <h2 className="text-xl sm:text-2xl font-bold mb-6">Personal Information</h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-gray-500 text-sm">Name</p>
-                <p className="text-base sm:text-lg">{user.name}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Email</p>
-                <p className="text-base sm:text-lg break-words">{user.email}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Phone</p>
-                <p className="text-base sm:text-lg">{user.phone}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Role</p>
-                <p className="text-base sm:text-lg capitalize">{user.role}</p>
-              </div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold">Personal Information</h2>
+              {!isEditingProfile && (
+                <button
+                  onClick={startEditProfile}
+                  className="text-xs sm:text-sm font-semibold text-pink-600 border border-pink-400 hover:bg-pink-600 hover:text-white px-4 py-1.5 rounded-full"
+                >
+                  Edit
+                </button>
+              )}
             </div>
+
+            {isEditingProfile ? (
+              <form onSubmit={saveProfile} className="space-y-4">
+                <div>
+                  <label className="text-gray-500 text-sm block mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={(e) =>
+                      setProfileForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-base sm:text-lg focus:outline-none focus:border-pink-400"
+                    required
+                  />
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm mb-1">Email</p>
+                  <p className="text-base sm:text-lg break-words">{user.email}</p>
+                </div>
+                <div>
+                  <label className="text-gray-500 text-sm block mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={(e) =>
+                      setProfileForm((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-base sm:text-lg focus:outline-none focus:border-pink-400"
+                    required
+                  />
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm mb-1">Role</p>
+                  <p className="text-base sm:text-lg capitalize">{user.role}</p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="flex-1 sm:flex-none bg-pink-500 hover:bg-pink-600 disabled:opacity-60 text-white px-5 py-2 rounded-full text-sm font-semibold"
+                  >
+                    {savingProfile ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEditProfile}
+                    disabled={savingProfile}
+                    className="flex-1 sm:flex-none border border-gray-300 text-gray-600 hover:bg-gray-50 px-5 py-2 rounded-full text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-gray-500 text-sm">Name</p>
+                  <p className="text-base sm:text-lg">{user.name}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm">Email</p>
+                  <p className="text-base sm:text-lg break-words">{user.email}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm">Phone</p>
+                  <p className="text-base sm:text-lg">{user.phone}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm">Role</p>
+                  <p className="text-base sm:text-lg capitalize">{user.role}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -449,16 +549,16 @@ function Account() {
                           {booking.services.map((s) => s.name).join(", ")}
                         </p>
 
-                        <div className="flex flex-wrap justify-end gap-2 mt-4">
+                        <div className="flex gap-2 mt-4 sm:justify-end">
                           {booking.status === "Pending" && (
                             <button
                               onClick={() => cancelBooking(booking._id)}
-                              className="border border-red-400 text-red-500 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded-full text-xs"
+                              className="flex-1 sm:flex-none border border-red-400 text-red-500 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded-full text-xs whitespace-nowrap"
                             >
                               Cancel
                             </button>
                           )}
-                          <button className="border border-pink-400 text-pink-600 hover:bg-pink-600 hover:text-white px-4 py-1.5 rounded-full text-xs">
+                          <button className="flex-1 sm:flex-none border border-pink-400 text-pink-600 hover:bg-pink-600 hover:text-white px-4 py-1.5 rounded-full text-xs whitespace-nowrap">
                             Buy again
                           </button>
                         </div>
