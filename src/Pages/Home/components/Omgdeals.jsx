@@ -1,7 +1,8 @@
-import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Plus, Minus, Check, X } from "lucide-react";
 import { CartContext } from "../../../Context/CartContext";
+import { AuthContext } from "../../../Context/AuthContext";
 
 const DEALS = [
   {
@@ -371,7 +372,33 @@ export default function OmgDeals() {
   const [detailDeal, setDetailDeal] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToCart } = useContext(CartContext);
+  const { isLoggedIn } = useContext(AuthContext);
+
+  // Login ke baad wapas is page pe aane par, agar koi deal pending thi
+  // to uska detail modal phir se khol do — Add to Cart/Checkout khud
+  // user dabayega, silently cart mein add nahi karna
+  useEffect(() => {
+    const pendingDeal = location.state?.checkoutState?.pendingDeal;
+    if (pendingDeal) {
+      setDetailDeal(pendingDeal);
+      // state clear kar do taaki refresh/back navigation pe modal dobara na khule
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Agar user logged in nahi hai, to signin pe bhej do — pending deal
+  // state mein save karke, taaki login ke baad wapas yahi modal khule
+  const requireLogin = (deal) => {
+    navigate("/signin", {
+      state: {
+        from: location.pathname,
+        checkoutState: { pendingDeal: deal },
+      },
+    });
+  };
 
   // DEALS ka object ko asli CartContext ke item shape mein convert karta hai
   const mapToCartItem = (deal, qty) => ({
@@ -390,6 +417,14 @@ export default function OmgDeals() {
       const next = Math.max(0, updater(current));
       return { ...prev, [id]: next };
     });
+  };
+
+  const handleAdd = (deal) => {
+    if (!isLoggedIn) {
+      requireLogin(deal);
+      return;
+    }
+    setQty(deal.id, () => 1);
   };
 
   const handleIncrease = (id) => {
@@ -429,7 +464,7 @@ export default function OmgDeals() {
               key={deal.id}
               deal={deal}
               qty={getQty(deal.id)}
-              onAdd={() => setQty(deal.id, () => 1)}
+              onAdd={() => handleAdd(deal)}
               onIncrease={() => handleIncrease(deal.id)}
               onDecrease={() => setQty(deal.id, (q) => q - 1)}
               onViewDetails={setDetailDeal}
@@ -451,6 +486,10 @@ export default function OmgDeals() {
           onQtyChange={(val) => setQty(detailDeal.id, () => val)}
           onClose={() => setDetailDeal(null)}
           onCheckout={() => {
+            if (!isLoggedIn) {
+              requireLogin(detailDeal);
+              return;
+            }
             addToCart(mapToCartItem(detailDeal, getQty(detailDeal.id) || 1));
             setDetailDeal(null);
             navigate("/cart");

@@ -1,7 +1,8 @@
-import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Plus, Minus, Check, X, Share2 } from "lucide-react";
 import { CartContext } from "../../../Context/CartContext";
+import { AuthContext } from "../../../Context/AuthContext";
 
 const ITEMS = [
   {
@@ -408,7 +409,33 @@ export default function KoreanGlow() {
   const [detailItem, setDetailItem] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToCart } = useContext(CartContext);
+  const { isLoggedIn } = useContext(AuthContext);
+
+  // Login ke baad wapas is page pe aane par, agar koi item pending tha
+  // to uska detail modal phir se khol do — Add to Cart/Checkout khud
+  // user dabayega, silently cart mein add nahi karna
+  useEffect(() => {
+    const pendingItem = location.state?.checkoutState?.pendingItem;
+    if (pendingItem) {
+      setDetailItem(pendingItem);
+      // state clear kar do taaki refresh/back navigation pe modal dobara na khule
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Agar user logged in nahi hai, to signin pe bhej do — pending item
+  // state mein save karke, taaki login ke baad wapas yahi modal khule
+  const requireLogin = (item) => {
+    navigate("/signin", {
+      state: {
+        from: location.pathname,
+        checkoutState: { pendingItem: item },
+      },
+    });
+  };
 
   // ITEMS ka object ko asli CartContext ke item shape mein convert karta hai
   const mapToCartItem = (item, qty) => ({
@@ -427,6 +454,14 @@ export default function KoreanGlow() {
       const next = Math.max(0, updater(current));
       return { ...prev, [id]: next };
     });
+  };
+
+  const handleAdd = (item) => {
+    if (!isLoggedIn) {
+      requireLogin(item);
+      return;
+    }
+    setQty(item.id, () => 1);
   };
 
   const handleIncrease = (id) => {
@@ -466,7 +501,7 @@ export default function KoreanGlow() {
               key={item.id}
               item={item}
               qty={getQty(item.id)}
-              onAdd={() => setQty(item.id, () => 1)}
+              onAdd={() => handleAdd(item)}
               onIncrease={() => handleIncrease(item.id)}
               onDecrease={() => setQty(item.id, (q) => q - 1)}
               onViewDetails={setDetailItem}
@@ -488,6 +523,10 @@ export default function KoreanGlow() {
           onQtyChange={(val) => setQty(detailItem.id, () => val)}
           onClose={() => setDetailItem(null)}
           onCheckout={() => {
+            if (!isLoggedIn) {
+              requireLogin(detailItem);
+              return;
+            }
             addToCart(mapToCartItem(detailItem, getQty(detailItem.id) || 1));
             setDetailItem(null);
             navigate("/cart");

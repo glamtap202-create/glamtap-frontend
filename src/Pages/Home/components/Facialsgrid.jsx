@@ -1,6 +1,7 @@
-import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { CartContext } from "../../../Context/CartContext";
+import { AuthContext } from "../../../Context/AuthContext";
 import {
   Plus,
   Minus,
@@ -1272,7 +1273,33 @@ function FacialsGrid() {
   const [address, setAddress] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToCart } = useContext(CartContext);
+  const { isLoggedIn } = useContext(AuthContext);
+
+  // Login ke baad wapas is page pe aane par, agar koi product pending tha
+  // to uska detail modal phir se khol do — Add to Cart khud user dabayega,
+  // silently cart mein add nahi karna
+  useEffect(() => {
+    const pendingProduct = location.state?.checkoutState?.pendingProduct;
+    if (pendingProduct) {
+      setDetailProduct(pendingProduct);
+      // state clear kar do taaki refresh/back navigation pe modal dobara na khule
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Agar user logged in nahi hai, to signin pe bhej do — pending product
+  // state mein save karke, taaki login ke baad wapas yahi modal khule
+  const requireLogin = (product) => {
+    navigate("/signin", {
+      state: {
+        from: location.pathname,
+        checkoutState: { pendingProduct: product },
+      },
+    });
+  };
 
   // FacialsGrid ke product object ko asli CartContext ke item shape mein convert karta hai
   const mapToCartItem = (product, qty) => ({
@@ -1354,7 +1381,13 @@ function FacialsGrid() {
             qty={getQty(detailProduct.id)}
             onQtyChange={(val) => setQty(detailProduct.id, detailProduct, val)}
             onClose={() => setDetailProduct(null)}
-            onCheckout={() => setDetailProduct(null)}
+            onCheckout={() => {
+              if (!isLoggedIn) {
+                requireLogin(detailProduct);
+                return;
+              }
+              setDetailProduct(null);
+            }}
           />
         )}
       </>
@@ -1382,6 +1415,10 @@ function FacialsGrid() {
               qty={getQty(p.id)}
               onQtyChange={(val) => setQty(p.id, p, val)}
               onAddToCart={(product) => {
+                if (!isLoggedIn) {
+                  requireLogin(product);
+                  return;
+                }
                 addToCart(mapToCartItem(product, 1));
                 setQty(product.id, product, 1);
               }}
@@ -1401,6 +1438,10 @@ function FacialsGrid() {
           onQtyChange={(val) => setQty(detailProduct.id, detailProduct, val)}
           onClose={() => setDetailProduct(null)}
           onCheckout={() => {
+            if (!isLoggedIn) {
+              requireLogin(detailProduct);
+              return;
+            }
             addToCart(mapToCartItem(detailProduct, getQty(detailProduct.id) || 1));
             setDetailProduct(null);
             navigate("/cart");
