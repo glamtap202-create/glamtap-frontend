@@ -19,6 +19,15 @@ import {
   X,
 } from "lucide-react";
 
+// API ka baseURL (jisme "/api" already hoti hai, jaise ".../api") se
+// image server ka root nikaalte hain — taaki hardcoded "localhost:5000"
+// ki jagah wahi address use ho jo API calls ke liye already sahi hai
+// (chahe VITE_API_BASE_URL env variable set ho ya default localhost fallback)
+const IMAGE_BASE_URL = (API.defaults.baseURL || "http://localhost:5000/api").replace(
+  /\/api\/?$/,
+  ""
+);
+
 function Account() {
   const navigate = useNavigate();
 
@@ -75,7 +84,7 @@ function Account() {
   };
 
   const getImageUrl = (img) =>
-    img?.startsWith("http") ? img : `http://localhost:5000${img}`;
+    img?.startsWith("http") ? img : `${IMAGE_BASE_URL}${img}`;
 
   const statusColor = (status) => {
     switch (status) {
