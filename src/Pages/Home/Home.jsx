@@ -7,7 +7,7 @@ import Categories from "./components/Categories";
 import Offers from "./components/Offers";
 import WhyChooseUs from "./components/WhyChooseUs";
 import Testimonials from "./components/Testimonials";
-import Claimservices from "./components/Claimservices";
+// import Claimservices from "./components/Claimservices";
 import Download from "./components/Download";
 import Professional from "./components/Professional";
 import CelebritiesLoveUs from "./components/CelebritiesLoveUs";
